@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>纳指100 QDII 收益计算器</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-dim: #94a3b8;
+            --accent: #3b82f6;
+            --accent2: #06b6d4;
+            --green: #22c55e;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --purple: #a855f7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        /* ===== Tab Switcher ===== */
+        .tab-bar {
+            display: flex;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 16px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white;
+        }
+
+        .tab-btn:active { transform: scale(0.97); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== Input Panel ===== */
+        .input-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .input-group .input-with-unit {
+            display: flex;
+            align-items: center;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0 10px;
+            min-height: 48px;
+            transition: border-color 0.2s;
+        }
+
+        .input-group .input-with-unit:focus-within {
+            border-color: var(--accent);
+        }
+
+        .input-group input[type="number"] {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 18px;
+            padding: 12px 0;
+            outline: none;
+            font-weight: 600;
+            -moz-appearance: textfield;
+        }
+
+        .input-group input[type="number"]::-webkit-inner-spin-button,
+        .input-group input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .input-group .unit {
+            color: var(--text-dim);
+            font-size: 14px;
+            white-space: nowrap;
+            padding-left: 4px;
+        }
+
+        .rate-section {
+            margin-top: 14px;
+        }
+
+        .rate-section label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .rate-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .rate-btn {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+            min-height: 40px;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .rate-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* ===== Summary Cards ===== */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 10px;
+            text-align: center;
+        }
+
+        .summary-card .label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+
+        .summary-card .value {
+            font-size: 18px;
+            font-weight: 700;
+            word-break: break-all;
+        }
+
+        .val-green { color: var(--green); }
+        .val-accent { color: var(--accent); }
+        .val-orange { color: var(--orange); }
+        .val-purple { color: var(--purple); }
+
+        /* ===== Chart ===== */
+        .chart-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-panel h3 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            color: var(--text-dim);
+        }
+
+        .chart-wrap {
+            position: relative;
+            height: 320px;
+        }
+
+        /* ===== Detail Table ===== */
+        .detail-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .detail-panel h3 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            color: var(--text-dim);
+        }
+
+        .year-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .year-table th {
+            text-align: left;
+            padding: 8px 8px;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-dim);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .year-table td {
+            padding: 8px 8px;
+            border-bottom: 1px solid var(--surface2);
+            white-space: nowrap;
+        }
+
+        .year-table tr:hover td {
+            background: var(--surface2);
+        }
+
+        .year-table .phase-label {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .phase-invest { background: rgba(59,130,246,0.2); color: var(--accent); }
+        .phase-hold { background: rgba(168,85,247,0.2); color: var(--purple); }
+
+        /* ===== Disclaimer ===== */
+        .disclaimer {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 11px;
+            padding: 16px 8px 32px;
+            line-height: 1.6;
+        }
+
+        /* ===== 平板 (≥640px) ===== */
+        @media (min-width: 640px) {
+            .input-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+        }
+
+        /* ===== Desktop Layout ===== */
+        @media (min-width: 768px) {
+            body { padding: 24px; }
+            .input-panel { padding: 24px; border-radius: 16px; }
+            .input-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; }
+            .summary-grid { grid-template-columns: repeat(6, 1fr); gap: 14px; }
+            .summary-card { padding: 18px; }
+            .summary-card .value { font-size: 22px; }
+            .chart-wrap { height: 400px; }
+            h1 { font-size: 28px; }
+            .subtitle { font-size: 14px; margin-bottom: 28px; }
+            .chart-panel, .detail-panel { padding: 20px; border-radius: 16px; margin-bottom: 24px; }
+            .chart-panel h3, .detail-panel h3 { font-size: 16px; }
+            .year-table { font-size: 13px; }
+            .year-table th, .year-table td { padding: 10px 12px; }
+            .disclaimer { font-size: 12px; padding: 20px; }
+        }
+
+        @media (min-width: 1024px) {
+            .summary-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📈 纳指100 QDII 收益计算器</h1>
+    <p class="subtitle">模拟定投 / 一次性投入收益 · 结果仅供参考</p>
+
+    <!-- Tab Switcher -->
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="dca" onclick="switchTab('dca')">💰 每月定投</button>
+        <button class="tab-btn" data-tab="lump" onclick="switchTab('lump')">💎 一次性投入</button>
+    </div>
+
+    <!-- ==================== DCA Tab ==================== -->
+    <div class="tab-content active" id="tab-dca">
+        <!-- Input -->
+        <div class="input-panel">
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>每月定投金额</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="dcaMonthly" value="3000" min="100" step="100" inputmode="numeric" pattern="[0-9]*">
+                        <span class="unit">元</span>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>定投年限</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="dcaInvestYears" value="8" min="1" max="30" step="1" inputmode="numeric">
+                        <span class="unit">年</span>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>继续持有年限</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="dcaHoldYears" value="5" min="0" max="20" step="1" inputmode="numeric">
+                        <span class="unit">年</span>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>预期年化收益率</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="dcaRate" value="10" min="0" max="50" step="0.5" inputmode="decimal">
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="rate-section">
+                <label>预期年化收益率快速选择：</label>
+                <div class="rate-buttons" id="dcaRateBtns">
+                    <button class="rate-btn" data-rate="5">保守 5%</button>
+                    <button class="rate-btn" data-rate="8">稳健 8%</button>
+                    <button class="rate-btn" data-rate="10">基准 10%</button>
+                    <button class="rate-btn" data-rate="12">乐观 12%</button>
+                    <button class="rate-btn" data-rate="15">激进 15%</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-grid" id="dcaSummary">
+            <div class="summary-card">
+                <div class="label">累计投入本金</div>
+                <div class="value val-accent" id="dcaTotalInvested">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">期末总资产</div>
+                <div class="value val-green" id="dcaTotalValue">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">总收益</div>
+                <div class="value val-orange" id="dcaTotalProfit">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">总收益率</div>
+                <div class="value val-purple" id="dcaTotalReturn">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">年化收益率（IRR）</div>
+                <div class="value val-accent" id="dcaIRR">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">定投结束时资产</div>
+                <div class="value val-green" id="dcaInvestEnd">—</div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-panel">
+            <h3>📊 资产增长曲线</h3>
+            <div class="chart-wrap">
+                <canvas id="dcaChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Detail Table -->
+        <div class="detail-panel">
+            <h3>📋 逐年明细</h3>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="year-table" id="dcaTable">
+                    <thead>
+                        <tr>
+                            <th>年份</th><th>阶段</th><th>当年投入</th><th>累计投入</th>
+                            <th>年末资产</th><th>当年收益</th><th>累计收益</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== Lump Sum Tab ==================== -->
+    <div class="tab-content" id="tab-lump">
+        <!-- Input -->
+        <div class="input-panel">
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>一次性投入金额</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="lumpAmount" value="180000" min="1000" step="1000" inputmode="numeric" pattern="[0-9]*">
+                        <span class="unit">元</span>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>持有年限</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="lumpYears" value="10" min="1" max="40" step="1" inputmode="numeric">
+                        <span class="unit">年</span>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>预期年化收益率</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="lumpRate" value="10" min="0" max="50" step="0.5" inputmode="decimal">
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="rate-section">
+                <label>预期年化收益率快速选择：</label>
+                <div class="rate-buttons" id="lumpRateBtns">
+                    <button class="rate-btn" data-rate="5">保守 5%</button>
+                    <button class="rate-btn" data-rate="8">稳健 8%</button>
+                    <button class="rate-btn" data-rate="10">基准 10%</button>
+                    <button class="rate-btn" data-rate="12">乐观 12%</button>
+                    <button class="rate-btn" data-rate="15">激进 15%</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-grid" id="lumpSummary">
+            <div class="summary-card">
+                <div class="label">投入本金</div>
+                <div class="value val-accent" id="lumpPrincipal">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">期末总资产</div>
+                <div class="value val-green" id="lumpTotalValue">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">总收益</div>
+                <div class="value val-orange" id="lumpTotalProfit">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">总收益率</div>
+                <div class="value val-purple" id="lumpTotalReturn">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">翻倍时间</div>
+                <div class="value val-accent" id="lumpDoubleTime">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">期末收益/本金倍数</div>
+                <div class="value val-green" id="lumpMultiplier">—</div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-panel">
+            <h3>📊 资产增长曲线</h3>
+            <div class="chart-wrap">
+                <canvas id="lumpChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Detail Table -->
+        <div class="detail-panel">
+            <h3>📋 逐年明细</h3>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="year-table" id="lumpTable">
+                    <thead>
+                        <tr>
+                            <th>年份</th><th>累计投入</th><th>年末资产</th>
+                            <th>当年收益</th><th>累计收益</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+        ⚠️ 本计算器基于固定年化收益率的复利模型进行理论测算，实际收益受市场波动、汇率变动、基金费率等因素影响。<br>
+        纳指100历史年化约 12%~15%，但过往业绩不代表未来表现。投资有风险，入市需谨慎。
+    </div>
+</div>
+
+<script>
+// ===== Tab Switching =====
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    // Trigger chart resize after tab switch
+    setTimeout(() => {
+        if (tab === 'dca') calcDCA();
+        else calcLump();
+    }, 50);
+}
+
+// ===== Rate Buttons =====
+function bindRateBtns(containerId, rateInputId, calcFn) {
+    document.querySelectorAll('#' + containerId + ' .rate-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById(rateInputId).value = btn.dataset.rate;
+            document.querySelectorAll('#' + containerId + ' .rate-btn').forEach(b => {
+                b.style.borderColor = 'var(--border)';
+                b.style.background = 'var(--surface2)';
+                b.style.color = 'var(--text)';
+                b.style.fontWeight = '';
+            });
+            btn.style.borderColor = 'var(--accent)';
+            btn.style.background = 'rgba(59,130,246,0.15)';
+            btn.style.color = 'var(--accent)';
+            btn.style.fontWeight = '600';
+            calcFn();
+        });
+    });
+}
+
+function fmtWan(n) {
+    return (n / 10000).toFixed(2) + ' 万';
+}
+
+// ===== IRR Calculator (bisection) =====
+function calcIRR(cashflows) {
+    let totalOut = 0, totalIn = 0;
+    for (let t = 0; t < cashflows.length; t++) {
+        if (cashflows[t] < 0) totalOut += -cashflows[t];
+        else totalIn += cashflows[t];
+    }
+    if (totalIn <= totalOut || totalOut === 0) return -1;
+
+    let lo = -0.99, hi = 5.0;
+    for (let i = 0; i < 200; i++) {
+        let mid = (lo + hi) / 2;
+        let npv = 0;
+        for (let t = 0; t < cashflows.length; t++) {
+            npv += cashflows[t] / Math.pow(1 + mid, t);
+        }
+        if (Math.abs(npv) < 1e-6) return mid;
+        if (npv > 0) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+}
+
+// ===== DCA Calculator =====
+let dcaChart = null;
+
+function calcDCA() {
+    const P = parseFloat(document.getElementById('dcaMonthly').value) || 0;
+    const investYears = parseInt(document.getElementById('dcaInvestYears').value) || 0;
+    const holdYears = parseInt(document.getElementById('dcaHoldYears').value) || 0;
+    const annualRate = (parseFloat(document.getElementById('dcaRate').value) || 0) / 100;
+    const monthlyRate = annualRate / 12;
+    const totalMonths = (investYears + holdYears) * 12;
+    const investMonths = investYears * 12;
+
+    const labels = [];
+    const assetData = [];
+    const investedData = [];
+    let accumulated = 0, totalInvested = 0;
+
+    for (let m = 1; m <= investMonths; m++) {
+        accumulated = accumulated * (1 + monthlyRate) + P;
+        totalInvested += P;
+        if (m % 12 === 0 || m === 1) labels.push('第' + Math.ceil(m / 12) + '年末');
+        else if (m === investMonths) labels.push('定投结束');
+        else labels.push('');
+        assetData.push(accumulated);
+        investedData.push(totalInvested);
+    }
+
+    const investEndValue = accumulated;
+
+    for (let m = 1; m <= holdYears * 12; m++) {
+        accumulated = accumulated * (1 + monthlyRate);
+        if (m % 12 === 0) labels.push('第' + (investYears + Math.ceil(m / 12)) + '年末');
+        else labels.push('');
+        assetData.push(accumulated);
+        investedData.push(totalInvested);
+    }
+
+    const finalValue = accumulated;
+    const totalProfit = finalValue - totalInvested;
+    const totalReturnPct = totalInvested > 0 ? (totalProfit / totalInvested * 100) : 0;
+
+    const monthlyCashflows = [];
+    for (let m = 0; m < investMonths; m++) monthlyCashflows.push(-P);
+    for (let m = investMonths; m < totalMonths; m++) monthlyCashflows.push(0);
+    monthlyCashflows.push(finalValue);
+
+    const monthlyIRR = calcIRR(monthlyCashflows);
+    const annualizedIRR = (monthlyIRR > -0.5 && monthlyIRR < 10)
+        ? ((Math.pow(1 + monthlyIRR, 12) - 1) * 100) : NaN;
+
+    document.getElementById('dcaTotalInvested').textContent = fmtWan(totalInvested);
+    document.getElementById('dcaTotalValue').textContent = fmtWan(finalValue);
+    document.getElementById('dcaTotalProfit').textContent = fmtWan(totalProfit);
+    document.getElementById('dcaTotalReturn').textContent = totalReturnPct.toFixed(2) + '%';
+    document.getElementById('dcaIRR').textContent = isFinite(annualizedIRR) && annualizedIRR > -50 && annualizedIRR < 5000
+        ? annualizedIRR.toFixed(2) + '%' : '—';
+    document.getElementById('dcaInvestEnd').textContent = fmtWan(investEndValue);
+
+    // Chart
+    if (dcaChart) dcaChart.destroy();
+    const ctx = document.getElementById('dcaChart').getContext('2d');
+    const isMobile = window.innerWidth < 768;
+
+    const annotationConfig = {};
+    if (investMonths > 0 && investMonths < assetData.length) {
+        annotationConfig['phaseLine'] = {
+            type: 'line', xMin: investMonths - 1, xMax: investMonths - 1,
+            borderColor: '#f59e0b', borderWidth: 2, borderDash: [6, 4],
+            label: {
+                display: true, content: '定投结束 → 仅持有', position: 'top',
+                backgroundColor: 'rgba(245,158,11,0.15)', borderColor: '#f59e0b',
+                borderWidth: 1, borderRadius: 6, color: '#f59e0b',
+                font: { size: isMobile ? 10 : 11 }
+            }
+        };
+    }
+
+    dcaChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: '账户总资产', data: assetData,
+                    borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',
+                    fill: true, tension: 0.3,
+                    pointRadius: labels.map((_, i) => i % 12 === 11 || i === investMonths - 1 || i === assetData.length - 1 ? (isMobile ? 3 : 4) : 0),
+                    pointBackgroundColor: '#22c55e', borderWidth: isMobile ? 2 : 2.5
+                },
+                {
+                    label: '累计投入本金', data: investedData,
+                    borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)',
+                    fill: true, tension: 0, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3]
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                annotation: { annotations: annotationConfig },
+                tooltip: {
+                    enabled: !isMobile,
+                    backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#f1f5f9',
+                    bodyColor: '#94a3b8', borderColor: '#475569', borderWidth: 1, padding: 12,
+                    callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtWan(ctx.raw) }
+                },
+                legend: {
+                    labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', font: { size: isMobile ? 10 : 12 }, padding: isMobile ? 12 : 20 }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#64748b', maxRotation: 45, autoSkip: true, maxTicksLimit: isMobile ? 8 : 15, font: { size: isMobile ? 9 : 11 }, callback: (v, i) => labels[i] || '' },
+                    grid: { color: 'rgba(71,85,105,0.3)' }
+                },
+                y: {
+                    ticks: { color: '#64748b', font: { size: isMobile ? 9 : 11 }, maxTicksLimit: isMobile ? 6 : 10, callback: v => fmtWan(v) },
+                    grid: { color: 'rgba(71,85,105,0.3)' }
+                }
+            }
+        }
+    });
+
+    // Table
+    const tbody = document.querySelector('#dcaTable tbody');
+    tbody.innerHTML = '';
+    const allData = assetData.map((a, i) => ({ month: i + 1, asset: a, invested: investedData[i] }));
+
+    for (let y = 1; y <= investYears + holdYears; y++) {
+        const mi = y * 12 - 1;
+        if (mi >= allData.length) continue;
+        const pmi = (y - 1) * 12 - 1;
+        const prevAsset = pmi >= 0 ? allData[pmi].asset : 0;
+        const yearInvested = y <= investYears ? P * 12 : 0;
+        const cumInvested = allData[mi].invested;
+        const yearEndAsset = allData[mi].asset;
+        const yearProfit = yearEndAsset - prevAsset - yearInvested;
+        const cumProfit = yearEndAsset - cumInvested;
+        const isInv = y <= investYears;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="font-weight:600;">第 ${y} 年</td>
+            <td><span class="phase-label ${isInv ? 'phase-invest' : 'phase-hold'}">${isInv ? '定投中' : '仅持有'}</span></td>
+            <td>${yearInvested > 0 ? fmtWan(yearInvested) : '—'}</td>
+            <td>${fmtWan(cumInvested)}</td>
+            <td style="color:var(--green);font-weight:600;">${fmtWan(yearEndAsset)}</td>
+            <td style="color:${yearProfit >= 0 ? 'var(--green)' : 'var(--red)'};">${yearProfit >= 0 ? '+' : ''}${fmtWan(yearProfit)}</td>
+            <td style="color:${cumProfit >= 0 ? 'var(--green)' : 'var(--red)'};">${cumProfit >= 0 ? '+' : ''}${fmtWan(cumProfit)}</td>`;
+        tbody.appendChild(tr);
+    }
+}
+
+// ===== Lump Sum Calculator =====
+let lumpChart = null;
+
+function calcLump() {
+    const P = parseFloat(document.getElementById('lumpAmount').value) || 0;
+    const years = parseInt(document.getElementById('lumpYears').value) || 0;
+    const annualRate = (parseFloat(document.getElementById('lumpRate').value) || 0) / 100;
+
+    const labels = [];
+    const assetData = [];
+    const principalData = [];
+
+    let accumulated = P;
+    for (let y = 1; y <= years; y++) {
+        accumulated = P * Math.pow(1 + annualRate, y);
+        labels.push('第' + y + '年末');
+        assetData.push(accumulated);
+        principalData.push(P);
+    }
+
+    const finalValue = accumulated;
+    const totalProfit = finalValue - P;
+    const totalReturnPct = P > 0 ? (totalProfit / P * 100) : 0;
+    const multiplier = P > 0 ? (finalValue / P) : 0;
+
+    // 72 rule: double time
+    const doubleTime = annualRate > 0 ? (72 / (annualRate * 100)) : 0;
+
+    document.getElementById('lumpPrincipal').textContent = fmtWan(P);
+    document.getElementById('lumpTotalValue').textContent = fmtWan(finalValue);
+    document.getElementById('lumpTotalProfit').textContent = fmtWan(totalProfit);
+    document.getElementById('lumpTotalReturn').textContent = totalReturnPct.toFixed(2) + '%';
+    document.getElementById('lumpDoubleTime').textContent = doubleTime > 0 ? '约 ' + doubleTime.toFixed(1) + ' 年' : '—';
+    document.getElementById('lumpMultiplier').textContent = multiplier > 0 ? multiplier.toFixed(2) + ' 倍' : '—';
+
+    // Chart
+    if (lumpChart) lumpChart.destroy();
+    const ctx = document.getElementById('lumpChart').getContext('2d');
+    const isMobile = window.innerWidth < 768;
+
+    lumpChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: '账户总资产', data: assetData,
+                    borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)',
+                    fill: true, tension: 0.3,
+                    pointRadius: isMobile ? 3 : 4,
+                    pointBackgroundColor: '#22c55e', borderWidth: isMobile ? 2 : 2.5
+                },
+                {
+                    label: '投入本金', data: principalData,
+                    borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)',
+                    fill: true, tension: 0, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3]
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                tooltip: {
+                    enabled: !isMobile,
+                    backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#f1f5f9',
+                    bodyColor: '#94a3b8', borderColor: '#475569', borderWidth: 1, padding: 12,
+                    callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtWan(ctx.raw) }
+                },
+                legend: {
+                    labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', font: { size: isMobile ? 10 : 12 }, padding: isMobile ? 12 : 20 }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#64748b', font: { size: isMobile ? 9 : 11 } },
+                    grid: { color: 'rgba(71,85,105,0.3)' }
+                },
+                y: {
+                    ticks: { color: '#64748b', font: { size: isMobile ? 9 : 11 }, callback: v => fmtWan(v) },
+                    grid: { color: 'rgba(71,85,105,0.3)' }
+                }
+            }
+        }
+    });
+
+    // Table
+    const tbody = document.querySelector('#lumpTable tbody');
+    tbody.innerHTML = '';
+
+    for (let y = 1; y <= years; y++) {
+        const yearEndAsset = P * Math.pow(1 + annualRate, y);
+        const prevAsset = y > 1 ? P * Math.pow(1 + annualRate, y - 1) : P;
+        const yearProfit = yearEndAsset - prevAsset;
+        const cumProfit = yearEndAsset - P;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="font-weight:600;">第 ${y} 年</td>
+            <td>${fmtWan(P)}</td>
+            <td style="color:var(--green);font-weight:600;">${fmtWan(yearEndAsset)}</td>
+            <td style="color:${yearProfit >= 0 ? 'var(--green)' : 'var(--red)'};">+${fmtWan(yearProfit)}</td>
+            <td style="color:${cumProfit >= 0 ? 'var(--green)' : 'var(--red)'};">${cumProfit >= 0 ? '+' : ''}${fmtWan(cumProfit)}</td>`;
+        tbody.appendChild(tr);
+    }
+}
+
+// ===== Init =====
+bindRateBtns('dcaRateBtns', 'dcaRate', calcDCA);
+bindRateBtns('lumpRateBtns', 'lumpRate', calcLump);
+
+document.querySelectorAll('#tab-dca input').forEach(input => {
+    input.addEventListener('input', calcDCA);
+});
+
+document.querySelectorAll('#tab-lump input').forEach(input => {
+    input.addEventListener('input', calcLump);
+});
+
+calcDCA();
+calcLump();
+</script>
+</body>
+</html>
